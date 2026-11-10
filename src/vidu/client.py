@@ -42,11 +42,23 @@ def _http() -> httpx.AsyncClient:
 
 
 def _headers() -> dict:
-    return {"Authorization": f"Token {CONF['api_key']}", "Content-Type": "application/json"}
+    # 本地渲染 / 未填 key 时不要发 "Token " —— httpx 会判定为非法 header 值
+    h = {"Content-Type": "application/json"}
+    key = str(CONF.get("api_key") or "").strip()
+    if key and str(CONF.get("provider") or "").lower() != "local":
+        h["Authorization"] = f"Token {key}"
+    return h
 
 
 def _url(path: str) -> str:
-    return f"https://{CONF.get('host', 'api.vidu.cn')}{path}"
+    """host 带 scheme 时走本地渲染服务(如 http://192.168.50.98:9880)，否则走 Vidu 云。
+
+    这样云端 / 本地两套后端共用同一套调用代码，engine 层无需分支。
+    """
+    host = str(CONF.get("host", "api.vidu.cn")).rstrip("/")
+    if "://" in host:
+        return f"{host}{path}"
+    return f"https://{host}{path}"
 
 
 async def close() -> None:

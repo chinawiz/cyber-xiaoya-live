@@ -44,8 +44,8 @@
 
 | 项目 | 是否必须 | 说明 |
 |---|---|---|
-| Windows 10/11 + NVIDIA 显卡（≥8GB 显存） | 必须 | 渲染在云端，但 TTS 在本机跑 |
-| Vidu 账号 + API Key | 必须 | 数字人渲染与推流，按秒计费（1 积分/秒） |
+| Windows 10/11（或 macOS）+ NVIDIA 显卡（≥8GB 显存） | 必须 | 渲染在云端时只跑 TTS；走本地渲染时这里就是渲染机 |
+| 渲染后端：**本地 GPU（推荐）** 或 Vidu 账号 | 二选一 | 本地见 [§2.7](tools/local_avatar/README.md)：不计费；Vidu 按秒计费（实时 1.5 积分/秒 ≈ \$0.45/分钟），适合当备用 |
 | LLM API Key（DeepSeek 或任意 OpenAI 兼容） | 必须 | 她的"脑子" |
 | TTS 服务（OmniVoice / 见 §2.4） | 必须，否则没声音 | 本机跑，WSL2 + CUDA |
 | ffmpeg | 必须 | 音频解码统一走它 |
@@ -70,6 +70,10 @@
 - 舞台页是本地网页（`http://127.0.0.1:8795/stage`），你在浏览器里操作，不需要公网
 
 **为什么这么设计**：不用买云端 ASR/LLM/TTS 套餐，成本只剩 Vidu 的渲染费；音色、人设、歌单全在你自己手里。
+
+> 💡 **这一层是可替换的**：`provider=local` 时，"变成画面"这一步改由局域网 GPU 上的
+> `tools/local_avatar/` 完成（协议与 Vidu 组件版一致），渲染费从 \$0.45/分钟降到电费。
+> 见 [§2.7](#27可选推荐把-vidu-换成自己的-gpu--本地渲染后端)。
 
 ---
 
@@ -224,7 +228,40 @@ Content-Type: application/json
 
 送礼事件额外带 `kind:"gift"`、`gift_item`、`gift_num`、`gift_value`（折算钻）。
 
-### 2.6（可选）点播歌单
+### 2.7（可选，推荐）把 Vidu 换成自己的 GPU —— 本地渲染后端
+
+**为什么**：Vidu 实时数字人 **1.5 积分/秒**，1 积分 = \$0.005，也就是 **\$0.45/分钟、\$27/小时**。
+连播 4 小时就 \$108。本地渲染的边际成本只有电费。
+
+**怎么接**：仓库自带一份伪装成 Vidu 组件 API 的本地渲染服务（`tools/local_avatar/`），
+跑在局域网 GPU 机的 `:9880`。桥那边的 LLM / TTS / 弹幕 / 点播链路一行都不用改，只改 `config.json`：
+
+```json
+{
+  "vidu": { "provider": "local", "model": "local-musetalk", "host": "http://<GPU机IP>:9880", "api_key": "" },
+  "avatar": { "avatar_id": "local" },
+  "rtc": { "mode": "managed", "managed_provider": "local" }
+}
+```
+
+完整部署、后端选型（Ditto / MuseTalk / Wav2Lip）、性能调优见
+**[tools/local_avatar/README.md](tools/local_avatar/README.md)**。
+
+**说清代价**（这是选型的分水岭，不是"本地更好"）：
+
+| | 本地渲染 | Vidu 云端 |
+|---|---|---|
+| 成本 | 电费 | \$0.45/分钟 |
+| 画质 | 256²（MuseTalk）/ 原图形变（Ditto），贴回你的原图 | 720p，25–42 FPS |
+| 动作库 | ❌ 无（"直发动作"只弹提示） | ✅ 有，含实时换装 / 换背景 |
+| 流畅度 | **取决于你的显卡**。本项目在 DGX Spark + MuseTalk 上实测单帧 38.5 ms（约 26 FPS 上限，目标 20 FPS），余量仅 ~20%，CPU/显存一抢就掉帧 | 云端算力，不受本机影响 |
+
+所以本项目的建议姿势是：**本地渲染当主用（省钱、数据不出门），Vidu 留作备用**——
+要上活动、要做复杂动作、或者本机卡得播不了的时候，把 `provider` 改回 `cloud` 就行。
+
+---
+
+### 2.8（可选）点播歌单
 
 把 mp3/flac/wav 丢进 `audio/` 目录，舞台页「🎵 点播歌单」就能看到。
 想要逐行歌词字幕，需要 `lyrics-cache/<歌名>.lrc.json`（用 `tools/lyrics_align.py` 生成，需要 ASR 环境）。
@@ -240,7 +277,9 @@ copy config.example.json config.json
 
 | 字段 | 填什么 |
 |---|---|
-| `vidu.api_key` | 你的 `vda_...` |
+| `vidu.provider` | `cloud`（Vidu 云端，默认）或 `local`（自己的 GPU，见 §2.7） |
+| `vidu.host` | 云端填 `api.vidu.cn`；本地填带 scheme 的地址，如 `http://192.168.50.98:9880` |
+| `vidu.api_key` | 你的 `vda_...`（`provider=local` 时留空，不会发 Authorization） |
 | `avatar.avatar_id` | 你上传的形象 ID（有 `image_uri` 就用那个） |
 | `action.library_id` | 动作库 ID；不建就填 `"0"` |
 | `rtc.mode` | `managed`（平台托管，推荐）或 `customer`（自备 RTC，要填 `rtc.artc.*`） |
@@ -307,6 +346,11 @@ IP 变了。`wsl hostname -I` 查新 IP，改 `tts.omnivoice_base`，或者用�
 **Q：录播下载不到文件？**
 Vidu 侧封盘可能要几分钟到几十分钟；页面「↻ 拉取录播」可以手动重试。
 
+**Q：本地渲染能跑，但画面卡 / 口型追不上声音？**
+算力不够，不是链路问题。先看 `/health` 里的 `gen_ms`：它 × 目标 FPS 超过 1000 就一定会掉帧
+（例：38.5 ms × 20 FPS = 770 ms，只剩 23% 余量）。三个办法：降 `LOCAL_AVATAR_FPS` 到 15、
+换 `wav2lip` 后端、或者把 `vidu.provider` 改回 `cloud` 用 Vidu。
+
 **Q：能换别的 TTS 吗？**
 代码里 `tts.engine` 目前只实现 `omnivoice`；要接 Edge-TTS / GPT-SoVITS 需要自己写一个适配层（`src/tts/` 下加一个类即可）。
 
@@ -365,6 +409,20 @@ Vidu 侧封盘可能要几分钟到几十分钟；页面「↻ 拉取录播」�
 ---
 
 ## 更新日志
+
+### 2026-11-10
+
+**新增**
+- 🖥 **本地渲染后端**（`vidu.provider=local`）：新增 `tools/local_avatar/`，把 Vidu 云端渲染替成局域网 GPU 上的本地模型服务（伪装成 Vidu 组件 API，桥侧零改动）
+  - 四种后端：Ditto（形变，无贴片感）/ MuseTalk 256² / Wav2Lip 96² / mock
+  - 舞台页新增本地播放通道：MJPEG 画面 + Web Audio 按 100 ms 排程播裸 PCM，不依赖浏览器解析无限 WAV 流
+  - 本地模式自动隐藏「积分 / 钻石 / 约钻石」三块平台口径卡片，收成一行「记忆 / Token」
+  - `vidu.host` 支持带 scheme（`http://ip:port`），云端 / 本地共用同一套调用代码
+- 🚀 `run-local.sh`：macOS 一键起（自动拉起 GPU 侧渲染服务 + SSH 转发 TTS + 起桥）
+
+**说明**
+- 本地渲染是**主用**链路，Vidu 云端保留为**备用**（改 `provider` 即可切换）
+- 实测瓶颈在显卡：MuseTalk 单帧 38.5 ms，距 20 FPS 只剩 ~23% 余量；链路本身没问题
 
 ### 2026-11-02
 

@@ -262,7 +262,11 @@ class Engine:
         image_uri = (overrides.get("image_uri") or avatar.get("image_uri") or "").strip()
         avatar_id = (overrides.get("avatar_id") or avatar.get("avatar_id") or "").strip()
         body: dict = {"model": model}
-        if image_uri:
+        # 本地渲染服务用本地肖像文件，不需要 Vidu 的 avatar_id / image_uri 资产
+        local = str((conf.get("vidu") or {}).get("provider") or "").lower() == "local"
+        if local:
+            body["avatar_id"] = avatar_id or "local"
+        elif image_uri:
             body["image_uri"] = image_uri
         elif avatar_id:
             body["avatar_id"] = avatar_id
@@ -382,7 +386,10 @@ class Engine:
                 self.rtc = {"source": "managed", "provider": mr.get("provider", "artc"),
                             "app_id": mr.get("app_id", ""), "channel_id": mr.get("channel_id", ""),
                             "user_id": mr.get("user_id", ""), "token": mr.get("token", ""),
-                            "timestamp": mr.get("token_expire_at", "")}
+                            "timestamp": mr.get("token_expire_at", ""),
+                            # 本地渲染服务返回 MJPEG / PCM 流地址，舞台页据此播放
+                            "stream_url": mr.get("stream_url", ""),
+                            "audio_url": mr.get("audio_url", "")}
             else:
                 s = extra["viewer_sign"]
                 rc = conf.get("rtc") or {}

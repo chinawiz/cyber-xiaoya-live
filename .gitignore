@@ -33,9 +33,14 @@ __pycache__/
 *.pyo
 .pytest_cache/
 
+# ── 本地验证产物 / 工作区数据(体积大、含本机路径, 不入库) ──
+verify-evidence/
+.workbuddy/
+
 # ── 编辑器 / 系统 ──────────────────────────────────────
 .vscode/
 .idea/
 Thumbs.db
 desktop.ini
 .DS_Store
+key.txt

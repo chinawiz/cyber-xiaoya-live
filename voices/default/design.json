@@ -1,0 +1,16 @@
+{
+  "label": "默认女声（设计音色）",
+  "lang": "Chinese",
+  "gender": "Female / 女",
+  "age": "Young Adult / 青年",
+  "pitch": "Auto",
+  "style": "Auto",
+  "accent": "Auto",
+  "dialect": "Auto",
+  "ns": 32,
+  "gs": 2.0,
+  "dn": true,
+  "sp": 1.0,
+  "pp": true,
+  "po": true
+}

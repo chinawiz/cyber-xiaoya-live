@@ -79,11 +79,19 @@ class ComponentSignaling:
 
     async def connect(self) -> None:
         path = self.ws_path.format(live_id=self.live_id)
-        url = f"wss://{self.host}{path}?conn_id={self.conn_id}"
+        # host 带 scheme(http://…) 时走 ws:// 连本地渲染服务；云端仍是 wss://
+        host = str(self.host).rstrip("/")
+        if "://" in host:
+            base = host.replace("https://", "ws://").replace("http://", "ws://")
+        else:
+            base = f"wss://{host}"
+        url = f"{base}{path}?conn_id={self.conn_id}"
         headers = {"Authorization": f"Token {self.api_key}"} if self.api_key else {}
-        self.ws = await websockets.connect(url, additional_headers=headers, max_size=None,
-                                           ssl=ssl_context(), ping_interval=10,
-                                           ping_timeout=20, close_timeout=5)
+        kwargs = {"max_size": None, "ping_interval": 10,
+                  "ping_timeout": 20, "close_timeout": 5}
+        if base.startswith("wss://"):
+            kwargs["ssl"] = ssl_context()
+        self.ws = await websockets.connect(url, additional_headers=headers, **kwargs)
         self.last_send = self.last_recv = time.time()
         self._listener = asyncio.create_task(self._pump())
 
