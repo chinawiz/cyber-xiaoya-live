@@ -6,7 +6,7 @@
     "api_key": "vda_<在这里填你的Vidu密钥>",
     "api_keys": [],
     "avatar_id": "<在这里填你的数字人形象ID>",
-    "_host说明": "cloud 模式填 api.vidu.cn；local 模式填带 scheme 的地址，如 http://192.168.50.98:9880",
+    "_host说明": "cloud 模式填 api.vidu.cn；local 模式填带 scheme 的地址，如 http://<GPU机IP>:9880",
     "host": "api.vidu.cn",
     "action": {
       "library_id": ""

@@ -278,7 +278,7 @@ copy config.example.json config.json
 | 字段 | 填什么 |
 |---|---|
 | `vidu.provider` | `cloud`（Vidu 云端，默认）或 `local`（自己的 GPU，见 §2.7） |
-| `vidu.host` | 云端填 `api.vidu.cn`；本地填带 scheme 的地址，如 `http://192.168.50.98:9880` |
+| `vidu.host` | 云端填 `api.vidu.cn`；本地填带 scheme 的地址，如 `http://<GPU机IP>:9880` |
 | `vidu.api_key` | 你的 `vda_...`（`provider=local` 时留空，不会发 Authorization） |
 | `avatar.avatar_id` | 你上传的形象 ID（有 `image_uri` 就用那个） |
 | `action.library_id` | 动作库 ID；不建就填 `"0"` |

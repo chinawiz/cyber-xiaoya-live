@@ -51,7 +51,7 @@ def _headers() -> dict:
 
 
 def _url(path: str) -> str:
-    """host 带 scheme 时走本地渲染服务(如 http://192.168.50.98:9880)，否则走 Vidu 云。
+    """host 带 scheme 时走本地渲染服务(如 http://<GPU机IP>:9880)，否则走 Vidu 云。
 
     这样云端 / 本地两套后端共用同一套调用代码，engine 层无需分支。
     """
